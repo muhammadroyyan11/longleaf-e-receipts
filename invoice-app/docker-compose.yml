@@ -1,0 +1,88 @@
+services:
+    app:
+        build:
+            context: .
+            dockerfile: Dockerfile
+        container_name: invoice-php-fpm
+        restart: always
+        volumes:
+            - .:/var/www/html
+        depends_on:
+            db:
+                condition: service_healthy
+        environment:
+            TZ: Asia/Jakarta
+            DB_CONNECTION: mysql
+            DB_HOST: db
+            DB_PORT: 3306
+            DB_DATABASE: ${DB_DATABASE}
+            DB_USERNAME: ${DB_USERNAME}
+            DB_PASSWORD: ${DB_PASSWORD}
+        command: >
+            sh -c "mkdir -p storage/framework/cache storage/framework/sessions storage/framework/views bootstrap/cache
+            && chown -R www-data:www-data storage bootstrap/cache
+            && php-fpm"
+
+    nginx:
+        image: nginx:stable-alpine
+        container_name: invoice-nginx
+        restart: always
+        ports:
+            - "3030:80"
+        volumes:
+            - .:/var/www/html
+            - ./nginx.conf:/etc/nginx/conf.d/default.conf
+        depends_on:
+            - app
+
+    db:
+        image: mariadb:10.6
+        container_name: invoice-db
+        restart: always
+        environment:
+            TZ: Asia/Jakarta
+            MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-root}
+            MYSQL_DATABASE: ${DB_DATABASE}
+            MYSQL_USER: ${DB_USERNAME}
+            MYSQL_PASSWORD: ${DB_PASSWORD}
+        volumes:
+            - invoice_db_data:/var/lib/mysql
+        ports:
+            - "3307:3306"
+        healthcheck:
+            test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-p${DB_ROOT_PASSWORD:-root}"]
+            interval: 10s
+            timeout: 5s
+            retries: 10
+
+    artisan:
+        build:
+            context: .
+            dockerfile: Dockerfile
+        container_name: invoice-artisan
+        volumes:
+            - .:/var/www/html
+        depends_on:
+            db:
+                condition: service_healthy
+        working_dir: /var/www/html
+        environment:
+            TZ: Asia/Jakarta
+            DB_CONNECTION: mysql
+            DB_HOST: db
+            DB_PORT: 3306
+            DB_DATABASE: ${DB_DATABASE}
+            DB_USERNAME: ${DB_USERNAME}
+            DB_PASSWORD: ${DB_PASSWORD}
+        entrypoint: ["php", "artisan"]
+
+    mailpit:
+        image: axllent/mailpit:latest
+        container_name: invoice-mailpit
+        restart: always
+        ports:
+            - "3031:8025"
+            - "1026:1025"
+
+volumes:
+    invoice_db_data:
