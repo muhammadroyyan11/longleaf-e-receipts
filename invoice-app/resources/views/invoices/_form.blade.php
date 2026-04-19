@@ -28,7 +28,7 @@
     </div>
 </div>
 @endif
-<div style="display:grid;grid-template-columns:1fr 1fr;gap:28px">
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:28px" class="form-2col">
 
     {{-- LEFT: Invoice Info + Invoiced To --}}
     <div>

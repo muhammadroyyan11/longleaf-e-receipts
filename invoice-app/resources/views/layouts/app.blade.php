@@ -16,7 +16,7 @@
         body { font-family: 'Inter', sans-serif; background: #f0f4f8; }
 
         /* Sidebar */
-        .sidebar { width: 240px; min-height: 100vh; background: var(--sidebar-bg); position: fixed; top: 0; left: 0; z-index: 100; }
+        .sidebar { width: 240px; height: 100vh; background: var(--sidebar-bg); position: fixed; top: 0; left: 0; z-index: 100; overflow-y: auto; }
         .sidebar-logo { padding: 20px 24px; border-bottom: 1px solid rgba(255,255,255,0.08); }
         .sidebar-logo span.logo-main { font-size: 22px; font-weight: 800; color: #fff; }
         .sidebar-logo span.logo-accent { color: var(--primary); }
@@ -28,11 +28,11 @@
 
         /* Main */
         .main-wrap { margin-left: 240px; min-height: 100vh; }
-        .topbar { background: #fff; border-bottom: 1px solid #e2e8f0; padding: 0 32px; height: 60px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 50; }
+        .topbar { background: #fff; border-bottom: 1px solid #e2e8f0; padding: 0 32px; height: 60px; display: flex; align-items: center; justify-content: space-between; position: fixed; top: 0; left: 240px; right: 0; z-index: 50; }
         .topbar-title { font-size: 16px; font-weight: 600; color: #1a202c; }
         .topbar-user { display: flex; align-items: center; gap: 12px; }
         .avatar { width: 36px; height: 36px; border-radius: 50%; background: var(--primary); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px; }
-        .content { padding: 32px; }
+        .content { padding: 32px; padding-top: calc(60px + 24px); }
 
         /* Cards */
         .card { background: #fff; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
@@ -86,6 +86,7 @@
         textarea { resize: vertical; min-height: 80px; }
         .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
         .form-row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+        .form-2col { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; }
 
         /* Alert */
         .alert { padding: 12px 16px; border-radius: 6px; font-size: 14px; margin-bottom: 20px; }
@@ -126,18 +127,37 @@
 
         /* Responsive */
         @media (max-width: 768px) {
-            .sidebar { transform: translateX(-100%); }
+            .sidebar { transform: translateX(-100%); transition: transform .25s ease; }
+            .sidebar.open { transform: translateX(0); }
             .main-wrap { margin-left: 0; }
-            .form-row, .form-row-3 { grid-template-columns: 1fr; }
+            .topbar { left: 0; padding: 0 16px; }
+            .form-row, .form-row-3, .form-2col { grid-template-columns: 1fr; }
             .invoice-parties { grid-template-columns: 1fr; }
             .stat-grid { grid-template-columns: 1fr 1fr; }
+            .content { padding: 16px; padding-top: calc(60px + 12px); }
+            .card-body { padding: 16px; }
+            .table-wrap { font-size: 13px; }
+            .topbar-user div:last-child { display: none; }
+            /* Fix inline grid di form */
+            [style*="grid-template-columns:1fr 1fr"],
+            [style*="grid-template-columns: 1fr 1fr"] { grid-template-columns: 1fr !important; }
+            /* Fix 2-col layout form invoice */
+            div[style*="display:grid"][style*="1fr 1fr"],
+            div[style*="display: grid"] { grid-template-columns: 1fr !important; }
         }
+        .sidebar-overlay { display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,.5); z-index: 99; }
+        .sidebar-overlay.open { display: block; }
+        .hamburger { display: none; background: none; border: none; cursor: pointer; padding: 4px; }
+        @media (max-width: 768px) { .hamburger { display: flex; align-items: center; } }
+        body.sidebar-open { overflow: hidden; position: fixed; width: 100%; }
     </style>
     @stack('styles')
 </head>
 <body>
+    <div class="sidebar-overlay" id="overlay" onclick="closeSidebar()"></div>
+
     <!-- Sidebar -->
-    <aside class="sidebar">
+    <aside class="sidebar" id="sidebar">
         <div class="sidebar-logo">
             <span class="logo-main">Invoice<span class="logo-accent">Gen</span></span>
         </div>
@@ -179,7 +199,12 @@
     <!-- Main -->
     <div class="main-wrap">
         <header class="topbar">
-            <span class="topbar-title">@yield('page-title', 'Dashboard')</span>
+            <div style="display:flex;align-items:center;gap:12px">
+                <button class="hamburger" onclick="toggleSidebar()" aria-label="Menu">
+                    <svg width="22" height="22" fill="none" stroke="#1a202c" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
+                </button>
+                <span class="topbar-title">@yield('page-title', 'Dashboard')</span>
+            </div>
             <div class="topbar-user">
                 <div class="avatar">{{ strtoupper(substr(auth()->user()->name, 0, 1)) }}</div>
                 <div>
@@ -205,5 +230,34 @@
     </div>
 
     @stack('scripts')
+<script>
+let scrollY = 0;
+
+function toggleSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('overlay');
+    const isOpen  = sidebar.classList.toggle('open');
+    overlay.classList.toggle('open', isOpen);
+    if (isOpen) {
+        scrollY = window.scrollY;
+        document.body.style.top = `-${scrollY}px`;
+        document.body.classList.add('sidebar-open');
+    } else {
+        closeSidebar();
+    }
+}
+
+function closeSidebar() {
+    document.getElementById('sidebar').classList.remove('open');
+    document.getElementById('overlay').classList.remove('open');
+    document.body.classList.remove('sidebar-open');
+    document.body.style.top = '';
+    window.scrollTo(0, scrollY);
+}
+
+document.querySelectorAll('.sidebar-nav a').forEach(a => {
+    a.addEventListener('click', closeSidebar);
+});
+</script>
 </body>
 </html>

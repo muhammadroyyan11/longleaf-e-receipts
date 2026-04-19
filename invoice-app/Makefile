@@ -16,6 +16,12 @@ seed:
 fresh:
 	docker compose run --rm artisan migrate:fresh --seed --force
 
+optimize:
+	docker compose run --rm artisan optimize
+
+optimize-clear:
+	docker compose run --rm artisan optimize:clear
+
 logs:
 	docker compose logs -f app
 
